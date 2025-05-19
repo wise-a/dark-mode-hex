@@ -1,1 +1,305 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hex to Dark Mode Converter</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        h1 {
+            text-align: center;
+            color: #333;
+        }
+        .container {
+            background-color: white;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .input-group {
+            margin-bottom: 20px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        input[type="text"] {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 16px;
+            box-sizing: border-box;
+        }
+        button {
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        .color-preview {
+            display: flex;
+            margin-top: 30px;
+        }
+        .color-box {
+            flex: 1;
+            padding: 20px;
+            border-radius: 4px;
+            text-align: center;
+            height: 100px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            margin: 0 10px;
+        }
+        .color-info {
+            margin-top: 10px;
+            font-weight: bold;
+        }
+        .method-select {
+            margin-bottom: 20px;
+        }
+        .method-option {
+            margin: 10px 0;
+        }
+        .slider-container {
+            margin-top: 20px;
+        }
+        .slider {
+            width: 100%;
+            height: 15px;
+            border-radius: 5px;
+            background: #d3d3d3;
+            outline: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Hex to Dark Mode Converter</h1>
+        
+        <div class="input-group">
+            <label for="hexInput">Enter Hex Color Code:</label>
+            <input type="text" id="hexInput" placeholder="e.g. #3498db or 3498db" value="#3498db">
+        </div>
+        
+        <div class="method-select">
+            <label>Darkening Method:</label>
+            <div class="method-option">
+                <input type="radio" id="hslMethod" name="method" value="hsl" checked>
+                <label for="hslMethod">HSL Method (preserves hue)</label>
+            </div>
+            <div class="method-option">
+                <input type="radio" id="rgbMethod" name="method" value="rgb">
+                <label for="rgbMethod">RGB Method (darkens RGB values)</label>
+            </div>
+        </div>
+        
+        <div class="slider-container">
+            <label for="darkenAmount">Darkness Amount: <span id="darkenValue">50</span>%</label>
+            <input type="range" min="10" max="90" value="50" class="slider" id="darkenAmount">
+        </div>
+        
+        <button id="convertBtn">Convert to Dark Mode</button>
+        
+        <div class="color-preview">
+            <div class="color-box" id="originalColor">
+                <div class="color-info" id="originalColorText">Original</div>
+            </div>
+            <div class="color-box" id="darkColor">
+                <div class="color-info" id="darkColorText">Dark Mode</div>
+            </div>
+        </div>
+    </div>
 
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const hexInput = document.getElementById('hexInput');
+            const convertBtn = document.getElementById('convertBtn');
+            const originalColor = document.getElementById('originalColor');
+            const darkColor = document.getElementById('darkColor');
+            const originalColorText = document.getElementById('originalColorText');
+            const darkColorText = document.getElementById('darkColorText');
+            const darkenAmount = document.getElementById('darkenAmount');
+            const darkenValue = document.getElementById('darkenValue');
+            
+            // Initialize with default value
+            updateColorPreview();
+            
+            // Update darkening amount display
+            darkenAmount.addEventListener('input', function() {
+                darkenValue.textContent = this.value;
+                updateColorPreview();
+            });
+            
+            // Method selection change
+            document.querySelectorAll('input[name="method"]').forEach(radio => {
+                radio.addEventListener('change', updateColorPreview);
+            });
+            
+            // Handle input changes
+            hexInput.addEventListener('input', function() {
+                const value = this.value.trim();
+                if (value.match(/^#?[0-9A-Fa-f]{6}$/)) {
+                    updateColorPreview();
+                }
+            });
+            
+            // Handle button click
+            convertBtn.addEventListener('click', updateColorPreview);
+            
+            function updateColorPreview() {
+                let hexColor = hexInput.value.trim();
+                
+                // Add # if missing
+                if (!hexColor.startsWith('#')) {
+                    hexColor = '#' + hexColor;
+                }
+                
+                // Validate hex color
+                if (!hexColor.match(/^#[0-9A-Fa-f]{6}$/)) {
+                    alert('Please enter a valid hex color code (e.g. #3498db or 3498db)');
+                    return;
+                }
+                
+                // Set original color preview
+                originalColor.style.backgroundColor = hexColor;
+                originalColorText.textContent = `Original: ${hexColor}`;
+                
+                // Set text color to ensure visibility
+                const brightness = calculateBrightness(hexColor);
+                originalColorText.style.color = brightness > 128 ? 'black' : 'white';
+                
+                // Get selected method
+                const method = document.querySelector('input[name="method"]:checked').value;
+                
+                // Convert to dark mode
+                const darkHex = (method === 'hsl') ? 
+                    convertToDarkModeHSL(hexColor, darkenAmount.value) : 
+                    convertToDarkModeRGB(hexColor, darkenAmount.value);
+                
+                // Set dark color preview
+                darkColor.style.backgroundColor = darkHex;
+                darkColorText.textContent = `Dark Mode: ${darkHex}`;
+                
+                // Set text color for dark mode preview
+                const darkBrightness = calculateBrightness(darkHex);
+                darkColorText.style.color = darkBrightness > 128 ? 'black' : 'white';
+            }
+            
+            function hexToRgb(hex) {
+                // Remove # if present
+                hex = hex.replace('#', '');
+                
+                // Parse r, g, b values
+                const r = parseInt(hex.substring(0, 2), 16);
+                const g = parseInt(hex.substring(2, 4), 16);
+                const b = parseInt(hex.substring(4, 6), 16);
+                
+                return { r, g, b };
+            }
+            
+            function rgbToHex(r, g, b) {
+                // Ensure values are within range
+                r = Math.max(0, Math.min(255, Math.round(r)));
+                g = Math.max(0, Math.min(255, Math.round(g)));
+                b = Math.max(0, Math.min(255, Math.round(b)));
+                
+                // Convert to hex and pad with zeros if needed
+                const hexR = r.toString(16).padStart(2, '0');
+                const hexG = g.toString(16).padStart(2, '0');
+                const hexB = b.toString(16).padStart(2, '0');
+                
+                return `#${hexR}${hexG}${hexB}`;
+            }
+            
+            function calculateBrightness(hex) {
+                const rgb = hexToRgb(hex);
+                return (rgb.r * 299 + rgb.g * 587 + rgb.b * 114) / 1000;
+            }
+            
+            function convertToDarkModeRGB(hex, amount) {
+                const darkFactor = amount / 100;
+                const rgb = hexToRgb(hex);
+                
+                // Darken RGB values
+                const darkR = rgb.r * (1 - darkFactor);
+                const darkG = rgb.g * (1 - darkFactor);
+                const darkB = rgb.b * (1 - darkFactor);
+                
+                return rgbToHex(darkR, darkG, darkB);
+            }
+            
+            function convertToDarkModeHSL(hex, amount) {
+                // Convert hex to RGB
+                const rgb = hexToRgb(hex);
+                
+                // Convert RGB to HSL
+                const r = rgb.r / 255;
+                const g = rgb.g / 255;
+                const b = rgb.b / 255;
+                
+                const max = Math.max(r, g, b);
+                const min = Math.min(r, g, b);
+                let h, s, l = (max + min) / 2;
+                
+                if (max === min) {
+                    h = s = 0; // achromatic
+                } else {
+                    const d = max - min;
+                    s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+                    
+                    switch (max) {
+                        case r: h = (g - b) / d + (g < b ? 6 : 0); break;
+                        case g: h = (b - r) / d + 2; break;
+                        case b: h = (r - g) / d + 4; break;
+                    }
+                    
+                    h /= 6;
+                }
+                
+                // Adjust lightness based on amount (lowering lightness makes it darker)
+                const targetL = l * (1 - (amount / 100));
+                
+                // Convert HSL back to RGB
+                let r1, g1, b1;
+                
+                if (s === 0) {
+                    r1 = g1 = b1 = targetL; // achromatic
+                } else {
+                    const hue2rgb = (p, q, t) => {
+                        if (t < 0) t += 1;
+                        if (t > 1) t -= 1;
+                        if (t < 1/6) return p + (q - p) * 6 * t;
+                        if (t < 1/2) return q;
+                        if (t < 2/3) return p + (q - p) * (2/3 - t) * 6;
+                        return p;
+                    };
+                    
+                    const q = targetL < 0.5 ? targetL * (1 + s) : targetL + s - targetL * s;
+                    const p = 2 * targetL - q;
+                    
+                    r1 = hue2rgb(p, q, h + 1/3);
+                    g1 = hue2rgb(p, q, h);
+                    b1 = hue2rgb(p, q, h - 1/3);
+                }
+                
+                return rgbToHex(r1 * 255, g1 * 255, b1 * 255);
+            }
+        });
+    </script>
+</body>
+</html>
